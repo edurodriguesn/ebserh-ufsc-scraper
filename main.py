@@ -1,0 +1,63 @@
+import requests
+from bs4 import BeautifulSoup
+import io
+import PyPDF2
+
+BASE_URL = "https://www.gov.br"
+START_URL = "https://www.gov.br/ebserh/pt-br/acesso-a-informacao/agentes-publicos/concursos-e-selecoes/concursos/2024/convocacoes/hu-ufsc"
+
+def fetch_main_entries():
+    response = requests.get(START_URL)
+    soup = BeautifulSoup(response.text, "html.parser")
+    entries_div = soup.find("div", class_="entries")
+    if not entries_div:
+        print("Div com class='entries' não encontrada.")
+        return []
+    article_links = []
+    for article in entries_div.find_all("article", class_="entry"):
+        summary = article.find("span", class_="summary")
+        if summary and summary.find("a"):
+            href = summary.find("a")["href"]
+            if href.startswith("http"):
+                article_links.append(href)
+            else:
+                article_links.append(BASE_URL + href)
+    return article_links
+
+
+def fetch_pdf_link_from_entry(entry_url):
+    response = requests.get(entry_url)
+    soup = BeautifulSoup(response.text, "html.parser")
+    content = soup.find("div", id="content-core")
+    if not content:
+        return None
+    for p in content.find_all("p"):
+        a = p.find("a")
+        if a and a.get("href", "").endswith("/file"):
+            return a["href"] if a["href"].startswith("http") else BASE_URL + a["href"]
+    return None
+
+def download_and_check_pdf(pdf_url, search_phrase):
+    response = requests.get(pdf_url)
+    with io.BytesIO(response.content) as pdf_file:
+        reader = PyPDF2.PdfReader(pdf_file)
+        full_text = ""
+        for page in reader.pages:
+            full_text += page.extract_text() or ""
+        return search_phrase.lower() in full_text.lower()
+
+def main():
+    entries = fetch_main_entries()
+    termo = "tecnologia da informação"
+    print(f"Encontrados {len(entries)} links de convocação.")
+    for entry_url in enumerate(entries, start=1):
+        pdf_url = fetch_pdf_link_from_entry(entry_url)
+        if not pdf_url:
+            continue
+        if download_and_check_pdf(pdf_url, termo):
+            print(f"A frase {termo} foi encontrada no PDF ({entry_url}).")
+        else:
+            continue
+
+if __name__ == "__main__":
+    main()
