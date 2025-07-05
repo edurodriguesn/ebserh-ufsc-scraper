@@ -49,7 +49,6 @@ def download_and_check_pdf(pdf_url, search_phrase):
 def main():
     entries = fetch_main_entries()
     termo = "tecnologia da informação"
-    print(f"Encontrados {len(entries)} links de convocação.")
     for entry_url in enumerate(entries, start=1):
         pdf_url = fetch_pdf_link_from_entry(entry_url)
         if not pdf_url:
