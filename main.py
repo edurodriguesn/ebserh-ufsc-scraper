@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import io
 import PyPDF2
+import enviar_mensagem as telegram
 
 BASE_URL = "https://www.gov.br"
 START_URL = "https://www.gov.br/ebserh/pt-br/acesso-a-informacao/agentes-publicos/concursos-e-selecoes/concursos/2024/convocacoes/hu-ufsc"
@@ -49,14 +50,19 @@ def download_and_check_pdf(pdf_url, search_phrase):
 def main():
     entries = fetch_main_entries()
     termo = "tecnologia da informação"
-    for entry_url in enumerate(entries, start=1):
+    print(f"Iniciando busca por convocações de {termo}...")
+    links = []
+    for entry_url in entries:
         pdf_url = fetch_pdf_link_from_entry(entry_url)
         if not pdf_url:
             continue
         if download_and_check_pdf(pdf_url, termo):
-            print(f"A frase {termo} foi encontrada no PDF ({entry_url}).")
-        else:
-            continue
+            links.append(pdf_url)
+    if links:
+        print("Novas convocações encontradas, enviando para o Telegram...")
+        telegram.enviar_telegram(links)
+    else:
+        print("Sem novas convocações.")
 
 if __name__ == "__main__":
     main()
