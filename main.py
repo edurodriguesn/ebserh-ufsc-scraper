@@ -40,12 +40,25 @@ def fetch_pdf_link_from_entry(entry_url):
 
 def download_and_check_pdf(pdf_url, search_phrase):
     response = requests.get(pdf_url)
-    with io.BytesIO(response.content) as pdf_file:
-        reader = PyPDF2.PdfReader(pdf_file)
-        full_text = ""
-        for page in reader.pages:
-            full_text += page.extract_text() or ""
-        return search_phrase.lower() in full_text.lower()
+    
+    # Verifica se é um PDF antes de continuar
+    if "application/pdf" not in response.headers.get("Content-Type", ""):
+        print(f"URL não retornou um PDF válido: {pdf_url}")
+        return False
+
+    try:
+        with io.BytesIO(response.content) as pdf_file:
+            print(f"Baixando PDF de: {pdf_url}")
+            print(f"Tamanho do conteúdo: {len(response.content)} bytes")
+            reader = PyPDF2.PdfReader(pdf_file)
+            full_text = ""
+            for page in reader.pages:
+                full_text += page.extract_text() or ""
+            return search_phrase.lower() in full_text.lower()
+    except PyPDF2.errors.PdfReadError as e:
+        print(f"Erro ao ler o PDF: {e} | URL: {pdf_url}")
+        return False
+
 
 def main():
     entries = fetch_main_entries()
