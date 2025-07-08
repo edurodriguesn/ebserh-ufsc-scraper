@@ -2,7 +2,7 @@ name: Scraper de Convocação EBSERH
 
 on:
   schedule:
-    - cron: '0 12 * * *'  # Executa diariamente às 09:00 BRT (12:00 UTC)
+    - cron: '0 21 * * *'  # Executa diariamente às 09:00 BRT (12:00 UTC)
   workflow_dispatch:       # Permite execução manual
 
 jobs:
