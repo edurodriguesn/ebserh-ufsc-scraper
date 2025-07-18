@@ -3,9 +3,32 @@ from bs4 import BeautifulSoup
 import io
 import PyPDF2
 import enviar_mensagem as telegram
+import os
 
 BASE_URL = "https://www.gov.br"
 START_URL = "https://www.gov.br/ebserh/pt-br/acesso-a-informacao/agentes-publicos/concursos-e-selecoes/concursos/2024/convocacoes/hu-ufsc"
+CHECKED_URLS_FILE = "urls_verificadas.txt"
+
+def load_checked_urls():
+    """Carrega URLs já verificadas do arquivo"""
+    if not os.path.exists(CHECKED_URLS_FILE):
+        return set()
+    
+    checked_urls = set()
+    with open(CHECKED_URLS_FILE, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line and '|' in line:
+                url = line.split('|')[0]
+                checked_urls.add(url)
+    return checked_urls
+
+def save_checked_url(url, contains_term):
+    """Salva URL verificada no arquivo"""
+    with open(CHECKED_URLS_FILE, 'a', encoding='utf-8') as f:
+        status = "COM_TERMO" if contains_term else "SEM_TERMO"
+        f.write(f"{url}|{status}\n")
+
 
 def fetch_main_entries():
     response = requests.get(START_URL)
@@ -64,13 +87,34 @@ def main():
     entries = fetch_main_entries()
     termo = "tecnologia da informação"
     print(f"Iniciando busca por convocações de {termo}...")
+    
+    # Carrega URLs já verificadas
+    checked_urls = load_checked_urls()
+    print(f"URLs já verificadas anteriormente: {len(checked_urls)}")
+    
     links = []
     for entry_url in entries:
         pdf_url = fetch_pdf_link_from_entry(entry_url)
         if not pdf_url:
             continue
-        if download_and_check_pdf(pdf_url, termo):
+        
+        # Verifica se a URL já foi verificada
+        if pdf_url in checked_urls:
+            print(f"URL já verificada anteriormente: {pdf_url}")
+            continue
+        
+        # Verifica o PDF
+        contains_term = download_and_check_pdf(pdf_url, termo)
+        
+        # Salva a URL verificada
+        save_checked_url(pdf_url, contains_term)
+        
+        if contains_term:
             links.append(pdf_url)
+            print(f"Termo encontrado em: {pdf_url}")
+        else:
+            print(f"Termo não encontrado em: {pdf_url}")
+    
     if links:
         print("Novas convocações encontradas, enviando para o Telegram...")
         telegram.enviar_telegram(links)

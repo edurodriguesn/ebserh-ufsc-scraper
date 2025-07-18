@@ -29,3 +29,18 @@ jobs:
         env:
           TOKEN_BOT: ${{ secrets.TOKEN_BOT }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
+
+      - name: Configurar Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Verificar mudanças e fazer commit
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git add urls_verificadas.txt
+            git commit -m "Atualizar URLs verificadas - $(date '+%Y-%m-%d %H:%M:%S')"
+            git push
+          else
+            echo "Nenhuma mudança detectada"
+          fi
