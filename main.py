@@ -33,32 +33,66 @@ def save_checked_url(url, contains_term):
 def fetch_main_entries():
     response = requests.get(START_URL)
     soup = BeautifulSoup(response.text, "html.parser")
-    entries_div = soup.find("div", class_="entries")
-    if not entries_div:
-        print("Div com class='entries' não encontrada.")
-        return []
+    
     article_links = []
-    for article in entries_div.find_all("article", class_="entry"):
-        summary = article.find("span", class_="summary")
-        if summary and summary.find("a"):
-            href = summary.find("a")["href"]
-            if href.startswith("http"):
-                article_links.append(href)
-            else:
-                article_links.append(BASE_URL + href)
+    
+    # Método 1: procurar por div com class="entries"
+    entries_div = soup.find("div", class_="entries")
+    if entries_div:
+        for article in entries_div.find_all("article", class_="entry"):
+            summary = article.find("span", class_="summary")
+            if summary and summary.find("a"):
+                href = summary.find("a")["href"]
+                if href.startswith("http"):
+                    article_links.append(href)
+                else:
+                    article_links.append(BASE_URL + href)
+    
+    # Método 2: procurar por links que terminam com .pdf
+    if not article_links:
+        for link in soup.find_all("a", href=True):
+            href = link["href"]
+            if href.endswith(".pdf") or "/@@download/file" in href:
+                if href.startswith("http"):
+                    article_links.append(href)
+                else:
+                    article_links.append(BASE_URL + href)
+    
+    # Método 3: procurar por links dentro de content-core
+    if not article_links:
+        content_core = soup.find("div", id="content-core")
+        if content_core:
+            for link in content_core.find_all("a", href=True):
+                href = link["href"]
+                if href.endswith(".pdf") or "/@@download/file" in href:
+                    if href.startswith("http"):
+                        article_links.append(href)
+                    else:
+                        article_links.append(BASE_URL + href)
+    
+    # Remover duplicatas
+    article_links = list(set(article_links))
+    
     return article_links
 
 
 def fetch_pdf_link_from_entry(entry_url):
     response = requests.get(entry_url)
     soup = BeautifulSoup(response.text, "html.parser")
+    
+    # Se a URL já é um link direto para PDF, retorna ela mesma
+    if entry_url.endswith(".pdf") or "/@@download/file" in entry_url:
+        return entry_url
+    
     content = soup.find("div", id="content-core")
     if not content:
         return None
+    
     for p in content.find_all("p"):
         a = p.find("a")
         if a and a.get("href", "").endswith("/file"):
             return a["href"] if a["href"].startswith("http") else BASE_URL + a["href"]
+    
     return None
 
 def download_and_check_pdf(pdf_url, search_phrase):
