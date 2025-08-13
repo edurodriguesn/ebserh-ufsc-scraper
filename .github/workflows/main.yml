@@ -5,6 +5,9 @@ on:
     - cron: '0 21 * * *'  # Executa diariamente às 09:00 BRT (12:00 UTC)
   workflow_dispatch:       # Permite execução manual
 
+permissions:
+  contents: write
+
 jobs:
   scraper:
     name: Executar scraper de concursos
@@ -32,18 +35,15 @@ jobs:
 
       - name: Configurar Git
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
 
       - name: Verificar mudanças e fazer commit
         run: |
           if [ -n "$(git status --porcelain)" ]; then
             git add urls_verificadas.txt
             git commit -m "Atualizar URLs verificadas - $(date '+%Y-%m-%d %H:%M:%S')"
-            git push origin main
+            git push
           else
             echo "Nenhuma mudança detectada"
           fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
