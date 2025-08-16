@@ -4,6 +4,7 @@ import io
 import PyPDF2
 import enviar_mensagem as telegram
 import os
+from unidecode import unidecode
 
 BASE_URL = "https://www.gov.br"
 START_URL = "https://www.gov.br/ebserh/pt-br/acesso-a-informacao/agentes-publicos/concursos-e-selecoes/concursos/2024/convocacoes/hu-ufsc"
@@ -95,7 +96,11 @@ def fetch_pdf_link_from_entry(entry_url):
     
     return None
 
-def download_and_check_pdf(pdf_url, search_phrase):
+def normalize_text(text):
+    """Normaliza texto removendo acentos e convertendo para minúsculas"""
+    return unidecode(text.lower())
+
+def download_and_check_pdf(pdf_url, search_phrases):
     response = requests.get(pdf_url)
     
     # Verifica se é um PDF antes de continuar
@@ -111,7 +116,19 @@ def download_and_check_pdf(pdf_url, search_phrase):
             full_text = ""
             for page in reader.pages:
                 full_text += page.extract_text() or ""
-            return search_phrase.lower() in full_text.lower()
+            
+            # Normaliza o texto do PDF
+            normalized_text = normalize_text(full_text)
+            
+            # Verifica cada termo de busca
+            for phrase in search_phrases:
+                normalized_phrase = normalize_text(phrase)
+                if normalized_phrase in normalized_text:
+                    print(f"Termo '{phrase}' encontrado em: {pdf_url}")
+                    return True
+            
+            print(f"Nenhum termo encontrado em: {pdf_url}")
+            return False
     except PyPDF2.errors.PdfReadError as e:
         print(f"Erro ao ler o PDF: {e} | URL: {pdf_url}")
         return False
@@ -119,8 +136,8 @@ def download_and_check_pdf(pdf_url, search_phrase):
 
 def main():
     entries = fetch_main_entries()
-    termo = "tecnologia da informação"
-    print(f"Iniciando busca por convocações de {termo}...")
+    termos = ["tecnologia da informação", "eduardo rodrigues nogueira"]
+    print(f"Iniciando busca por convocações dos termos: {', '.join(termos)}...")
     
     # Carrega URLs já verificadas
     checked_urls = load_checked_urls()
@@ -138,14 +155,13 @@ def main():
             continue
         
         # Verifica o PDF
-        contains_term = download_and_check_pdf(pdf_url, termo)
+        contains_term = download_and_check_pdf(pdf_url, termos)
         
         # Salva a URL verificada
         save_checked_url(pdf_url, contains_term)
         
         if contains_term:
             links.append(pdf_url)
-            print(f"Termo encontrado em: {pdf_url}")
         else:
             print(f"Termo não encontrado em: {pdf_url}")
     
